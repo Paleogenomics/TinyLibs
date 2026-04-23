@@ -34,7 +34,7 @@
 /* ------------------------------------------------------------------ */
 #define VERSION 2
 #define INITIAL_READ_CAPACITY   65536  /* starting array size per chrom */
-#define MAX_OVERHANG_TRACK      20     /* histogram half-width           */
+#define MAX_OVERHANG_TRACK      24     /* histogram half-width           */
 #define NBINS                   (2 * MAX_OVERHANG_TRACK + 1)
 
 /* ------------------------------------------------------------------ */
@@ -328,7 +328,7 @@ static void usage( const char *prog )
     fprintf( stderr,
         "Usage: %s [options] <sorted.bam>\n\n"
         "Options:\n"
-             "Version %d\n"
+	     "Version %d\n"
         "  -q <int>   Minimum mapping quality (MAPQ) filter (default: 0)\n"
         "  -h         Show this help message\n\n"
         "Description:\n"
@@ -339,7 +339,7 @@ static void usage( const char *prog )
         "  than one partner on the opposite strand are discarded.\n"
         "  Statistics are accumulated across all autosomes and reported once\n"
         "  at the end.\n",
-             progm, VERSION );
+	     prog, VERSION );
 }
 
 /* ------------------------------------------------------------------ */
@@ -567,10 +567,10 @@ int main( int argc, char *argv[] )
     }
 
     /* ---- Genome-wide report to stdout ---- */
-    printf( "Input BAM          : %s\n", bam_path );
-    printf( "MAPQ filter        : >= %d\n", min_mapq );
-    printf( "Total reads in BAM : %zu\n", total_reads_read );
-    printf( "Autosome reads kept: %zu\n", total_reads_kept );
+    printf( "# Input BAM          : %s\n", bam_path );
+    printf( "# MAPQ filter        : >= %d\n", min_mapq );
+    printf( "# Total reads in BAM : %zu\n", total_reads_read );
+    printf( "# Autosome reads kept: %zu\n", total_reads_kept );
     genome_stats_print(&gs);
 
     /* ---- Cleanup ---- */

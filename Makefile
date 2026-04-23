@@ -11,8 +11,8 @@ SRCS      = duplex_analyzer.c
 # Optional: point to a local htslib install
 # HTSLIB_PREFIX = /usr/local
 ifdef HTSLIB_PREFIX
-    CFLAGS  += -I$(HTSLIB_PREFIX)/include
-    LDFLAGS += -L$(HTSLIB_PREFIX)/lib -Wl,-rpath,$(HTSLIB_PREFIX)/lib
+	CFLAGS  += -I$(HTSLIB_PREFIX)/include
+	LDFLAGS += -L$(HTSLIB_PREFIX)/lib -Wl,-rpath,$(HTSLIB_PREFIX)/lib
 endif
 
 LDLIBS = -lhts -lz -lm -lpthread
@@ -22,7 +22,7 @@ LDLIBS = -lhts -lz -lm -lpthread
 all: $(TARGET)
 
 $(TARGET): $(SRCS) tiny.h
-        $(CC) $(CFLAGS) -o $@ $(SRCS) $(LDFLAGS) $(LDLIBS)
+	$(CC) $(CFLAGS) -o $@ $(SRCS) $(LDFLAGS) $(LDLIBS)
 
 clean:
-        rm -f $(TARGET)
+	rm -f $(TARGET)
