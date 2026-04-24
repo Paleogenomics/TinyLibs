@@ -1,0 +1,63 @@
+The program works great. Now, I'd like to edit it to add functionality
+and change a few things. I would now like to analyze the sequence
+context around each duplex fragment end. For that, we'll need to
+specify the reference genome as input to the program. I want to
+display the sequence context around each 5-prime and 3-prime end
+point, broken down by the type of overhang that is present in the
+duplex. Here are specific changes to make:
+
+1. The program should require the reference genome to which the
+sequences were aligned. This should come in via the -f option. The
+program should use the HTS library to access this sequence data.
+
+2. The program should include data structures and functions for
+recording observed numbers of short k-mers. The default length should
+be 6. The data structure should be an array that is indexed by a
+number that represents a specific kmer. The coversion between a kmer
+and this index number should use the code 00 = A, 01 = C, 10 = G, and
+11 = T. Any kmer with an N or X or other character should be
+ignored. In this way, a kmer can be represented as a bitstring. That
+bitstring can then be interpreted as an unsigned int. This unsigned
+int can be used to address a specific value in an array of all kmers
+of the specific length. The array should record how many kmers of that
+type have been observed. The functions for creating, accessing, and
+managing kmers can be written as its own source C file with its own
+header file to be included in the main program.
+
+3. In the main program, kmer arrays should be created for each
+possible overhang type and length. Two kmer arrays should be created
+for each overhang type and length. One kmer array will record kmer
+occurances around the DNA fragment whose 5-prime end is involved in
+the overhang type. The other kmer array will be for the DNA fragment
+whose 3-prime end is invovled in the overhang type and length.
+
+4. In the main program, after a duplex is found, we want to analyze
+both ends, i.e., the upper coordinate one and the lower coordinate
+one. Once the type is determined, find the position of the end-point
+of the strand whose 5-prime end is involved. Then, query the reference
+genome to find the kmer that spans this end point. For example, if
+position 100 in the genome is the 5-prime most base, then the k-mer of
+length 6 will be bases 97, 98, 99, 100, 101, and 102. Increment this
+kmer observation in the appropriate kmer array. The kmer should always
+be recorded in the 5-prime to 3-prime direction. This will require
+reverse complementing the kmer sequence taken from the genome for the
+strands that are mapped to the negative strand of the genome.
+
+5. Do Number 4 for both the Lower and upper coordinates of each
+duplex. There is no need to keep these separate anymore.
+
+6. Currently, to find the upper coordinate mapping positions, we
+currently just add the length of the aligned sequence to the alignment
+start position. This can be wrong if the alignment includes
+gaps. Analyze the CIGAR string or use HTS lib functions to find the
+alignment end genome coordinate for each mapped read, taking into account an
+insertions or deletions in the alignment. This should be done when
+constructing the FR RR ReadArray structs.
+
+7. The output of the program should be a row for every possible k-mer.
+For example, if k is 6, there should be 4 to the power of six rows of
+output. The columns should be the observed numbers of that kmer around
+the endpoints of each type, length and strand end of the duplexes. There
+are three types (blunt, 5-prime, and 3-prime). There are
+MAX_OVERHANG_TRACK lengths. There are two strand ends: 5-prime and
+3-prime.

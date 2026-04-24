@@ -1,0 +1,77 @@
+I want to write a C program to analyze DNA sequence data in a bam
+file. Use HTSLIB to parse the bam file. The bam file will not have
+read pairs, only single reads. These single reads will be of various
+length and represent the full length of DNA strands. The goal of the
+program will be to identify and analyze the reads whose alignments
+overlap. This is evidence that they were the two strands of a DNA
+duplex in the original DNA sample. The program should include a
+user-option to filter the data on Map Quality score.
+
+The overall flow of the program will be:
+1. Parse each chromosome of the input bam file, one by one. The input
+bam file  should be sorted by coordinate. End with a helpful message
+if it is not. 
+
+2. For each chromosome, make arrays with the start and end coordinates
+of each alignment. The end coordinate should be determined by adding
+the length of the aligned sequence to the start coordinate. There
+should be four arrays of type unsigned int. The arrays should be
+called FR_starts (start/lower coordinate of forward mapping reads),
+FR_ends (end/upper coordinate of forward mapping reads), RR_starts,
+and RR_ends. The Nth value in the FR_starts array and the Nth value in
+the FR_ends array should represent the Nth forward mapping read.
+
+3. When each chromosome parsing in finished, analyze the data in the
+arrays of end coordinates. Since the data in the end-coordinate arrays
+is sorted, we will cycle through the values to identify forward and
+reverse mapping reads whose coordinates overlap. If a forward read or
+a reverse read overlap with more than one read on the other strand,
+disregard all.
+
+4. Candidate duplex sequences will be recorded in an array of
+Duplex. This struct is defined in the tiny.h header file pasted at
+bottom.
+Candidate duplex sequences are identified by virtue of their
+overlapping mapping coordinates as described in section 3, above.
+
+5. When each chromosome is finished, write a summary of the number of
+duplex pairs identified and the distribution of the LCT and UCT field
+values in them.
+
+6. When all chromosomes have be parsed, analyzed, and reported, end
+the program.
+
+tiny.h Header file should be this:
+#ifndef TINY_Y
+#define TINY_Y
+#include <stdlib.h>
+#include <stdio.h>
+
+/* Duplex is the structure that holds information about both
+   reads in a pair of reads that form a duplex. The fields of
+   FLC, FUC, RLC, RUC are just the end coordinates of the mapped
+   reads.
+   The LCT and UCT field values  are inferred from the mapping
+   coordinates and describe the overhang type and length.
+   A positive number means a 5-prime overhang.
+   A negative numbers means a 3-prime overhang.
+   The DSL field is the length of the double-stranded segment of
+   the duplex. It is also inferred from the mapping coordinates.
+*/
+typedef struct {
+  unsigned int FLC; // forward read lower map coordinate
+  unsigned int FUC; // forward read upper map coordinate
+  unsigned int RLC; // reverse read lower map coordinate
+  unsigned int RUC; // reverse read upper map coordinate  
+  short int LCT;    // Lower coordinate end-type
+  short int UCT;    // Upper coordinate end-type
+  unsigned int DSL; // double-stranded section length
+} Duplex;
+
+/* _fill_Duplex
+   Function to infer and populate the LCT, UCT, and DSL fields
+   of a Duplex whose FLC, FUC, RLC, and RUC fields are populated.
+ */
+int _fill_Duplex( Duplex* d );
+#endif
+

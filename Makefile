@@ -6,7 +6,8 @@
 CC        = gcc
 CFLAGS    = -O2 -Wall -Wextra -std=c99
 TARGET    = duplex_analyzer
-SRCS      = duplex_analyzer.c
+SRCS      = duplex_analyzer.c kmer.c
+OBJS      = duplex_analyzer.o kmer.o
 
 # Optional: point to a local htslib install
 # HTSLIB_PREFIX = /usr/local
@@ -21,8 +22,14 @@ LDLIBS = -lhts -lz -lm -lpthread
 
 all: $(TARGET)
 
-$(TARGET): $(SRCS) tiny.h
-	$(CC) $(CFLAGS) -o $@ $(SRCS) $(LDFLAGS) $(LDLIBS)
+$(TARGET): $(OBJS) tiny.h kmer.h
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS) $(LDLIBS)
+
+duplex_analyzer.o: duplex_analyzer.c tiny.h kmer.h
+	$(CC) $(CFLAGS) -c -o $@ duplex_analyzer.c
+
+kmer.o: kmer.c kmer.h
+	$(CC) $(CFLAGS) -c -o $@ kmer.c
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(OBJS)
