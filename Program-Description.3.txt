@@ -1,0 +1,29 @@
+The program works great. I would now like to edit it to add an
+additional option for simplified output.
+
+Information about the new simplified output option:
+1. Add a new program switch, -L, to indicate this output option should
+be made.
+2. Add a new program flag, -I. The argument for this flag will be
+used as an identifier for the output. It is meant to be the sample ID
+of the data in the input bam file. This option lets the user specifiy
+what this should be.
+3. When the -L flag is used, do not call the
+genome_stats_print_summary() function. That is, do not output the
+LCT/UCT matrix.
+4. When the -L flag is used, print a single line of tab-separated
+values. The first value should be the sample ID as specified by the -I
+argument. All the following values should be the values that are now
+output by the print_kmer_table() function. But instead of line-breaks
+between the rows for each kmer, just put a tab so that all rows go on
+one line. Also, do not output the kmer itself (like "AAATCG"). For
+each value output in this tab-delimited list, the kmer is implied by
+its position in the list since the kmers are output in order.
+5. Update VERSION to the next integer.
+
+The purpose of this format is to have a single vector of this feature
+per bam file. The program can now be run on separate bam
+files. Concatentating the output lets one then do PCA or other
+analyses on these data, looking for trends in different samples.
+
+Please ask questions if anything is unclear.

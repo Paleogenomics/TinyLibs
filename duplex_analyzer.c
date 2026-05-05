@@ -17,6 +17,8 @@
  *   -f <fasta>  Reference genome FASTA (required; must have .fai index)
  *   -q <int>    Minimum mapping quality score (default: 0)
  *   -k <int>    K-mer length for sequence context (default: 6)
+ *   -L          Simplified single-line output mode
+ *   -I <id>     Sample identifier (used as first field with -L)
  *   -h          Show this help message
  *
  * Requires: htslib (samtools library)
@@ -40,9 +42,9 @@
 /* ------------------------------------------------------------------ */
 /*  Constants & tuneable defaults                                       */
 /* ------------------------------------------------------------------ */
-#define VERSION 3
+#define VERSION 4
 #define INITIAL_READ_CAPACITY   65536  /* starting array size per chrom */
-#define MAX_OVERHANG_TRACK      8     /* histogram half-width           */
+#define MAX_OVERHANG_TRACK      24     /* histogram half-width           */
 #define NBINS                   (2 * MAX_OVERHANG_TRACK + 1)
 
 /* ------------------------------------------------------------------ */
@@ -457,7 +459,47 @@ static void print_kmer_table( const GenomeStats *gs )
 }
 
 /* ------------------------------------------------------------------ */
-/*  Summary statistics print (to stdout, before the k-mer table)       */
+/*  Print simplified single-line output (-L mode)                      */
+/*                                                                      */
+/*  Emits one tab-separated line:                                       */
+/*    <sample_id> <TAB> val1 <TAB> val2 ... <NEWLINE>                  */
+/*  The values follow the same column order as print_kmer_table() but  */
+/*  k-mer sequences are omitted and row breaks are replaced with tabs.  */
+/* ------------------------------------------------------------------ */
+static void print_kmer_line( const GenomeStats *gs, const char *sample_id )
+{
+    int    k       = gs->kmer_k;
+    size_t n_kmers = 1;
+    for ( int i = 0; i < k; i++ ) n_kmers *= 4;
+
+    printf( "%s", sample_id );
+
+    for ( size_t idx = 0; idx < n_kmers; idx++ ) {
+        /* blunt (tl=0) */
+        printf( "\t%u\t%u",
+                gs->kmer_tables[0][0].counts[idx],
+                gs->kmer_tables[0][1].counts[idx] );
+
+        /* 5' overhang, lengths 1..MAX */
+        for ( int len = 1; len <= MAX_OVERHANG_TRACK; len++ ) {
+            int tl = type_len_index( OVH_FIVE, len );
+            printf( "\t%u\t%u",
+                    gs->kmer_tables[tl][0].counts[idx],
+                    gs->kmer_tables[tl][1].counts[idx] );
+        }
+
+        /* 3' overhang, lengths 1..MAX */
+        for ( int len = 1; len <= MAX_OVERHANG_TRACK; len++ ) {
+            int tl = type_len_index( OVH_THREE, len );
+            printf( "\t%u\t%u",
+                    gs->kmer_tables[tl][0].counts[idx],
+                    gs->kmer_tables[tl][1].counts[idx] );
+        }
+    }
+
+    printf( "\n" );
+}
+
 /* ------------------------------------------------------------------ */
 static void genome_stats_print_summary( const GenomeStats *gs )
 {
@@ -581,14 +623,18 @@ static void usage( const char *prog )
         "  -f <fasta>  Reference genome FASTA file (required; .fai index needed)\n"
         "  -q <int>    Minimum mapping quality (MAPQ) filter (default: 0)\n"
         "  -k <int>    K-mer length for sequence context (default: %d)\n"
+        "  -L          Simplified single-line output mode\n"
+        "  -I <id>     Sample identifier (first field in -L output; default: BAM path)\n"
         "  -h          Show this help message\n\n"
         "Description:\n"
         "  Analyzes a coordinate-sorted BAM file of single (unpaired) reads\n"
         "  to identify candidate DNA duplex pairs on autosomes chr1-chr22.\n"
         "  For each duplex, the sequence context around each end is queried\n"
-        "  from the reference genome and accumulated by overhang type/length.\n"
-        "  Output is a tab-delimited table: one row per k-mer, one column per\n"
-        "  (overhang type, length, strand end) combination.\n",
+        "  from the reference genome and accumulated by overhang type/length.\n\n"
+        "  Default output: tab-delimited table, one row per k-mer, one column\n"
+        "  per (overhang type, length, strand end) combination.\n\n"
+        "  With -L: a single tab-delimited line suitable for concatenation\n"
+        "  across samples for PCA or other multi-sample analyses.\n",
         prog, VERSION, DEFAULT_KMER_LEN );
 }
 
@@ -600,9 +646,11 @@ int main( int argc, char *argv[] )
     int         min_mapq   = 0;
     int         kmer_k     = DEFAULT_KMER_LEN;
     const char *fasta_path = NULL;
+    int         line_mode  = 0;        /* -L flag */
+    const char *sample_id  = NULL;     /* -I argument */
     int         opt;
 
-    while ( (opt = getopt(argc, argv, "f:q:k:h")) != -1 ) {
+    while ( (opt = getopt(argc, argv, "f:q:k:I:Lh")) != -1 ) {
         switch (opt) {
         case 'f':
             fasta_path = optarg;
@@ -620,6 +668,12 @@ int main( int argc, char *argv[] )
                 fprintf(stderr, "Error: k must be in [1, %d]\n", MAX_KMER_LEN);
                 return 1;
             }
+            break;
+        case 'L':
+            line_mode = 1;
+            break;
+        case 'I':
+            sample_id = optarg;
             break;
         case 'h':
             usage(argv[0]);
@@ -642,6 +696,9 @@ int main( int argc, char *argv[] )
     }
 
     const char *bam_path = argv[optind];
+
+    /* Default sample ID to the BAM file path if not specified */
+    if ( !sample_id ) sample_id = bam_path;
 
     /* ---- Open reference FASTA ---- */
     faidx_t *fai = fai_load( fasta_path );
@@ -691,6 +748,9 @@ int main( int argc, char *argv[] )
     fprintf( stderr, "Reference FASTA: %s\n", fasta_path );
     fprintf( stderr, "MAPQ filter    : >= %d\n", min_mapq );
     fprintf( stderr, "K-mer length   : %d\n", kmer_k );
+    fprintf( stderr, "Output mode    : %s\n", line_mode ? "single-line (-L)" : "table" );
+    if ( line_mode )
+        fprintf( stderr, "Sample ID      : %s\n", sample_id );
     fprintf( stderr, "Contigs in header: %d\n", n_targets );
     fprintf( stderr, "Analyzing autosomes chr1-chr22 ...\n" );
 
@@ -837,14 +897,18 @@ int main( int argc, char *argv[] )
     }
 
     /* ---- Output ---- */
-    printf( "# Input BAM          : %s\n", bam_path );
-    printf( "# Reference FASTA    : %s\n", fasta_path );
-    printf( "# MAPQ filter        : >= %d\n", min_mapq );
-    printf( "# K-mer length       : %d\n", kmer_k );
-    printf( "# Total reads in BAM : %zu\n", total_reads_read );
-    printf( "# Autosome reads kept: %zu\n", total_reads_kept );
-    genome_stats_print_summary(&gs);
-    print_kmer_table(&gs);
+    if ( line_mode ) {
+        print_kmer_line( &gs, sample_id );
+    } else {
+        printf( "# Input BAM          : %s\n", bam_path );
+        printf( "# Reference FASTA    : %s\n", fasta_path );
+        printf( "# MAPQ filter        : >= %d\n", min_mapq );
+        printf( "# K-mer length       : %d\n", kmer_k );
+        printf( "# Total reads in BAM : %zu\n", total_reads_read );
+        printf( "# Autosome reads kept: %zu\n", total_reads_kept );
+        genome_stats_print_summary(&gs);
+        print_kmer_table(&gs);
+    }
 
     /* ---- Cleanup ---- */
     bam_destroy1(aln);
